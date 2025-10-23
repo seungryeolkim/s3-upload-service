@@ -1,0 +1,31 @@
+{
+  "name": "s3-upload-service",
+  "version": "1.0.0",
+  "description": "Simple S3 image upload service for Vercel",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "@aws-sdk/client-s3": "^3.500.0",
+    "axios": "^1.7.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/jsonwebtoken": "^9.0.5",
+    "eslint": "^8.50.0",
+    "eslint-config-next": "^15.0.0",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
+  }
+}
