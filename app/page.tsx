@@ -21,6 +21,8 @@ export default function UploadPage() {
   const [showCopied, setShowCopied] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [showOverwriteModal, setShowOverwriteModal] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState<FormData | null>(null);
 
   const BASE_URL = 'https://cdn.yetter.ai/ytr-ai';
 
@@ -78,28 +80,21 @@ export default function UploadPage() {
     }
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!file) {
-      setError('파일을 선택해주세요');
-      return;
+  const checkFileExists = async (s3Key: string): Promise<boolean> => {
+    try {
+      const response = await axios.post('/api/files/check', { s3Key });
+      return response.data.exists;
+    } catch (err) {
+      return false;
     }
+  };
 
-    if (!fileName) {
-      setError('파일명을 입력해주세요');
-      return;
-    }
-
+  const performUpload = async (formData: FormData) => {
     setLoading(true);
     setError('');
     setUploadUrl('');
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('fileName', fileName);
-
       const response = await axios.post<UploadResponse>(
         '/api/upload',
         formData,
@@ -124,7 +119,55 @@ export default function UploadPage() {
       setError(errorMessage);
     } finally {
       setLoading(false);
+      setShowOverwriteModal(false);
+      setPendingUpload(null);
     }
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!file) {
+      setError('파일을 선택해주세요');
+      return;
+    }
+
+    if (!fileName) {
+      setError('파일명을 입력해주세요');
+      return;
+    }
+
+    // S3 키 생성
+    const originalFileName = file.name || 'upload';
+    const ext = originalFileName.split('.').pop() || 'jpg';
+    const s3Key = `ytr-ai/${fileName}.${ext}`;
+
+    // 파일 존재 여부 확인
+    const exists = await checkFileExists(s3Key);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('fileName', fileName);
+
+    if (exists) {
+      // 파일이 이미 존재 - 모달 표시
+      setPendingUpload(formData);
+      setShowOverwriteModal(true);
+    } else {
+      // 파일이 없음 - 바로 업로드
+      await performUpload(formData);
+    }
+  };
+
+  const handleOverwriteConfirm = async () => {
+    if (pendingUpload) {
+      await performUpload(pendingUpload);
+    }
+  };
+
+  const handleOverwriteCancel = () => {
+    setShowOverwriteModal(false);
+    setPendingUpload(null);
   };
 
   const copyToClipboard = () => {
@@ -168,7 +211,13 @@ export default function UploadPage() {
               이미지 & 비디오를 S3에 업로드하고 CDN URL을 받으세요
             </p>
           </div>
-          <div className="flex-1 flex justify-end">
+          <div className="flex-1 flex justify-end space-x-3">
+            <button
+              onClick={() => router.push('/files')}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition shadow-md hover:shadow-lg"
+            >
+              📁 파일 목록
+            </button>
             <button
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition shadow-md hover:shadow-lg"
@@ -309,6 +358,49 @@ export default function UploadPage() {
               >
                 🔄 다시 업로드
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* 덮어쓰기 확인 모달 */}
+        {showOverwriteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+              <div className="text-center mb-6">
+                <div className="text-5xl mb-4">⚠️</div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                  파일이 이미 존재합니다
+                </h2>
+                <p className="text-gray-600">
+                  같은 이름의 파일이 이미 업로드되어 있습니다.
+                </p>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-yellow-800">
+                  <span className="font-bold">파일명:</span> {fileName}
+                </p>
+                <p className="text-sm text-yellow-800 mt-2">
+                  기존 파일을 <span className="font-bold text-red-600">덮어쓰시겠습니까?</span>
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleOverwriteCancel}
+                  disabled={loading}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-lg transition disabled:opacity-50"
+                >
+                  ❌ 취소
+                </button>
+                <button
+                  onClick={handleOverwriteConfirm}
+                  disabled={loading}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-lg transition disabled:opacity-50"
+                >
+                  {loading ? '⏳ 업로드 중...' : '✓ 덮어쓰기'}
+                </button>
+              </div>
             </div>
           </div>
         )}
