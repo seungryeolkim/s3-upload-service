@@ -12,6 +12,9 @@ interface FileItem {
   url: string;
 }
 
+type SortField = 'fileName' | 'size' | 'lastModified';
+type SortOrder = 'asc' | 'desc';
+
 export default function FilesPage() {
   const router = useRouter();
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -20,6 +23,8 @@ export default function FilesPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCopied, setShowCopied] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('lastModified');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // 인증 확인
   useEffect(() => {
@@ -89,9 +94,39 @@ export default function FilesPage() {
     });
   };
 
-  const filteredFiles = files.filter((file) =>
-    file.fileName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // 같은 필드 클릭 시 정렬 순서 변경
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 다른 필드 클릭 시 해당 필드로 내림차순 정렬
+      setSortField(field);
+      setSortOrder('desc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return '↕️';
+    return sortOrder === 'asc' ? '↑' : '↓';
+  };
+
+  const sortedAndFilteredFiles = files
+    .filter((file) =>
+      file.fileName.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      let comparison = 0;
+      
+      if (sortField === 'fileName') {
+        comparison = a.fileName.localeCompare(b.fileName);
+      } else if (sortField === 'size') {
+        comparison = a.size - b.size;
+      } else if (sortField === 'lastModified') {
+        comparison = new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime();
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   if (isCheckingAuth) {
     return (
@@ -154,7 +189,7 @@ export default function FilesPage() {
             </button>
           </div>
           <div className="mt-4 text-sm text-gray-600">
-            총 <span className="font-bold text-indigo-600">{filteredFiles.length}</span>개의 파일
+            총 <span className="font-bold text-indigo-600">{sortedAndFilteredFiles.length}</span>개의 파일
             {searchTerm && ` (전체 ${files.length}개 중)`}
           </div>
         </div>
@@ -172,7 +207,7 @@ export default function FilesPage() {
             <div className="text-4xl mb-4 animate-spin">⏳</div>
             <p className="text-gray-600">파일 목록을 불러오는 중...</p>
           </div>
-        ) : filteredFiles.length === 0 ? (
+        ) : sortedAndFilteredFiles.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
             <div className="text-4xl mb-4">📭</div>
             <p className="text-gray-600">
@@ -185,14 +220,38 @@ export default function FilesPage() {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">파일명</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">크기</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">업로드 일시</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold">URL</th>
+                    <th 
+                      className="px-6 py-4 text-left text-sm font-semibold cursor-pointer hover:bg-indigo-700 transition"
+                      onClick={() => handleSort('fileName')}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span>파일명</span>
+                        <span className="text-xs">{getSortIcon('fileName')}</span>
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-4 text-left text-sm font-semibold cursor-pointer hover:bg-indigo-700 transition"
+                      onClick={() => handleSort('size')}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span>크기</span>
+                        <span className="text-xs">{getSortIcon('size')}</span>
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-4 text-left text-sm font-semibold cursor-pointer hover:bg-indigo-700 transition"
+                      onClick={() => handleSort('lastModified')}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span>업로드 일시</span>
+                        <span className="text-xs">{getSortIcon('lastModified')}</span>
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold">작업</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredFiles.map((file, index) => (
+                  {sortedAndFilteredFiles.map((file, index) => (
                     <tr
                       key={file.key}
                       className={`hover:bg-gray-50 transition ${
@@ -216,12 +275,20 @@ export default function FilesPage() {
                         {formatDate(file.lastModified)}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => copyToClipboard(file.url, file.key)}
-                          className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm shadow-md hover:shadow-lg"
-                        >
-                          {showCopied === file.key ? '✓ 복사됨!' : '📋 복사'}
-                        </button>
+                        <div className="flex items-center justify-center space-x-2">
+                          <button
+                            onClick={() => window.open(file.url, '_blank')}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm shadow-md hover:shadow-lg"
+                          >
+                            🔗 열기
+                          </button>
+                          <button
+                            onClick={() => copyToClipboard(file.url, file.key)}
+                            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm shadow-md hover:shadow-lg"
+                          >
+                            {showCopied === file.key ? '✓ 복사됨!' : '📋 복사'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
