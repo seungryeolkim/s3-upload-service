@@ -11,6 +11,11 @@ const s3Client = new S3Client({
   endpoint: process.env.AWS_ENDPOINT_URL,
 });
 
+// 지원되는 파일 타입
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+
 // 파일 업로드 처리
 export async function POST(request: NextRequest): Promise<Response> {
   try {
@@ -26,12 +31,31 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
+    // 파일 크기 검증 (2GB 제한)
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `파일 크기가 너무 큽니다. 최대 ${MAX_FILE_SIZE / (1024 * 1024 * 1024)}GB까지 업로드 가능합니다.` },
+        { status: 400 }
+      );
+    }
+
+    // 파일 타입 검증 (이미지 또는 비디오)
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+    const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
+
+    if (!isImage && !isVideo) {
+      return NextResponse.json(
+        { error: '지원되지 않는 파일 형식입니다. 이미지(JPG, PNG, GIF, WebP) 또는 비디오(MP4, MOV, AVI, WebM)만 가능합니다.' },
+        { status: 400 }
+      );
+    }
+
     // 파일을 Buffer로 변환
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // 파일 확장자 추출
     const originalFileName = file.name || 'upload';
-    const ext = originalFileName.split('.').pop() || 'jpg';
+    const ext = originalFileName.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
 
     // S3 키 생성 (사용자입력.확장자)
     const s3Key = `ytr-ai/${fileName}.${ext}`;

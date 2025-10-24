@@ -66,11 +66,14 @@ export default function UploadPage() {
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type.startsWith('image/')) {
+      const isImage = droppedFile.type.startsWith('image/');
+      const isVideo = droppedFile.type.startsWith('video/');
+      
+      if (isImage || isVideo) {
         setFile(droppedFile);
         setError('');
       } else {
-        setError('이미지 파일만 업로드 가능합니다');
+        setError('이미지 또는 비디오 파일만 업로드 가능합니다');
       }
     }
   };
@@ -159,10 +162,10 @@ export default function UploadPage() {
           <div className="flex-1"></div>
           <div className="text-center flex-1">
             <h1 className="text-4xl font-bold text-gray-800 mb-2">
-              📤 S3 Image Upload
+              📤 S3 Media Upload
             </h1>
             <p className="text-gray-600">
-              이미지를 S3에 업로드하고 CDN URL을 받으세요
+              이미지 & 비디오를 S3에 업로드하고 CDN URL을 받으세요
             </p>
           </div>
           <div className="flex-1 flex justify-end">
@@ -219,18 +222,18 @@ export default function UploadPage() {
               <input
                 type="file"
                 id="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 onChange={handleFileChange}
                 disabled={loading}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
               />
               <div className="text-center">
-                <div className="text-4xl mb-2">🖼️</div>
+                <div className="text-4xl mb-2">🎬</div>
                 <p className="text-lg font-semibold text-gray-700 mb-1">
-                  이미지를 드래그해주세요
+                  이미지 또는 비디오를 드래그해주세요
                 </p>
                 <p className="text-sm text-gray-500 mb-3">
-                  또는 클릭해서 파일을 선택하세요
+                  또는 클릭해서 파일을 선택하세요 (최대 2GB)
                 </p>
                 {file && (
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -326,9 +329,9 @@ export default function UploadPage() {
             <div className="flex items-start space-x-3">
               <span className="text-2xl flex-shrink-0">2️⃣</span>
               <div>
-                <p className="font-semibold text-gray-700">이미지 선택</p>
+                <p className="font-semibold text-gray-700">미디어 파일 선택</p>
                 <p className="text-sm text-gray-600">
-                  드래그앤드롭하거나 클릭해서 파일 선택
+                  이미지(JPG, PNG, GIF, WebP) 또는 비디오(MP4, MOV, AVI, WebM) 선택
                 </p>
               </div>
             </div>
@@ -337,7 +340,7 @@ export default function UploadPage() {
               <div>
                 <p className="font-semibold text-gray-700">업로드</p>
                 <p className="text-sm text-gray-600">
-                  버튼을 클릭해서 S3에 업로드
+                  버튼을 클릭해서 S3에 업로드 (최대 2GB)
                 </p>
               </div>
             </div>
